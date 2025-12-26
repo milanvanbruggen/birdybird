@@ -94,10 +94,10 @@ class VideoCamera:
     def get_frame(self):
         with self.lock:
             if not self.video or not self.video.isOpened():
-                return None, False
+                return None, False, [], None
             success, frame = self.video.read()
             if not success:
-                return None, False
+                return None, False, [], None
 
         # --- 1. Basic Motion Trigger (CPU optimization) ---
         # We only run heavy YOLO inference if something is moving.
@@ -111,7 +111,7 @@ class VideoCamera:
         
         if self.last_frame is None:
             self.last_frame = gray
-            return frame, False
+            return frame, False, [], frame.copy()
 
         frame_delta = cv2.absdiff(self.last_frame, gray)
         thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
@@ -171,6 +171,9 @@ class VideoCamera:
                             
                             final_detections.append((sx1, sy1, sx2, sy2, conf))
 
+        # Store clean frame for processing (before drawing)
+        clean_frame = frame.copy()
+
         # --- 3. Action & Drawing ---
         
         if len(final_detections) > 0:
@@ -185,7 +188,7 @@ class VideoCamera:
             if self.motion_counter >= 5:
                 motion_detected = True
             
-            # Draw
+            # Draw on the display frame
             if self.debug_mode:
                 for (x1, y1, x2, y2, conf) in final_detections:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -202,7 +205,8 @@ class VideoCamera:
             pass
 
         self.last_frame = gray
-        return frame, motion_detected
+        # Return frame (for display), motion flag, detections list, and clean frame (for AI)
+        return frame, motion_detected, final_detections, clean_frame
 
     def get_jpeg(self, frame):
         ret, jpeg = cv2.imencode('.jpg', frame)

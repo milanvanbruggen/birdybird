@@ -53,6 +53,38 @@ def clear_all_detections():
     conn.commit()
     conn.close()
 
+def update_detection(id, species, interesting_fact, confidence):
+    """Update a detection's species, fact, and confidence."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''
+        UPDATE detections 
+        SET species = ?, interesting_fact = ?, confidence = ?
+        WHERE id = ?
+    ''', (species, interesting_fact, confidence, id))
+    conn.commit()
+    rows_affected = c.rowcount
+    conn.close()
+    return rows_affected > 0
+
+def delete_detection(id):
+    """Delete a specific detection."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('DELETE FROM detections WHERE id = ?', (id,))
+    conn.commit()
+    rows_affected = c.rowcount
+    conn.close()
+    return rows_affected > 0
+
+def clear_all_detections():
+    """Delete all detections from the database."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('DELETE FROM detections')
+    conn.commit()
+    conn.close()
+
 if __name__ == "__main__":
     init_db()
     print("Database initialized.")

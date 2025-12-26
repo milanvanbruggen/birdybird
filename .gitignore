@@ -5,3 +5,15 @@ birdybird.db
 static/captures/*
 .DS_Store
 yolov8n.pt
+
+# Frontend dependencies & build
+frontend/node_modules/
+frontend/dist/
+
+# Python
+venv/
+.venv/
+
+# Editor
+.vscode/
+.idea/

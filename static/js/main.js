@@ -92,11 +92,16 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(data => {
                 console.log(data.message);
-                // Force reload of image source to restart stream connection if needed
-                // Usually not needed with MJPEG but good practice if it freezes
-                const src = videoFeed.src;
+
+                // Force reload of image source to restart stream connection
+                // We strip existing params and add a timestamp to bypass browser cache
+                const currentSrc = videoFeed.src.split('?')[0];
                 videoFeed.src = '';
-                setTimeout(() => videoFeed.src = src, 100);
+
+                // Slight delay to allow backend to switch and browser to clear old connection
+                setTimeout(() => {
+                    videoFeed.src = `${currentSrc}?t=${new Date().getTime()}`;
+                }, 200);
             });
     });
 
