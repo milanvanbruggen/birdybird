@@ -35,9 +35,11 @@ class BirdClassifier:
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
             
             # Preprocess
+            print("Classifier: Preprocessing image...")
             inputs = self._processor(image, return_tensors="pt")
             
             # Inference
+            print("Classifier: Running inference...")
             with torch.no_grad():
                 logits = self._model(**inputs).logits
             
@@ -47,9 +49,12 @@ class BirdClassifier:
             
             label = self._model.config.id2label[top_idx.item()]
             score = top_prob.item()
+            print(f"Classifier result: {label} ({score:.4f})")
             
             return label, score
             
         except Exception as e:
             print(f"Error during classification: {e}")
+            import traceback
+            traceback.print_exc()
             return None, 0.0

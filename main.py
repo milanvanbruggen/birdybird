@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from camera import VideoCamera
 from ai import analyze_frame
 from database import init_db, add_detection, get_recent_detections, clear_all_detections
+from classifier import BirdClassifier
 import shutil
 
 app = FastAPI()
@@ -24,6 +25,7 @@ init_db()
 
 # Global camera instance
 camera = VideoCamera()
+classifier = BirdClassifier()
 
 # Processing lock/flag to prevent overlapping AI calls
 is_processing = False
@@ -33,7 +35,7 @@ AI_COOLDOWN = 10  # Seconds between AI checks
 # Config
 ENABLE_CLOUD_AI = os.getenv("ENABLE_CLOUD_AI", "true").lower() == "true"
 
-def process_bird_detection(frame_bytes):
+def process_bird_detection(image_bytes):
     """
     Background task to handle AI analysis (or local logging).
     """
@@ -53,9 +55,15 @@ def process_bird_detection(frame_bytes):
         # Local Classification
         label, score = classifier.predict(image_bytes)
         
-        if label and score > 0.4: # 40% confidence threshold
-            bird_name = label
-            description = f"Detected via local EfficientNetB2 model with {score*100:.1f}% confidence."
+        # Try to save something even if weak, so valid detection isn't lost
+        if label and score > 0.1: # 10% minimum to filter total junk
+            if score < 0.4:
+                bird_name = f"Unsure: {label}?"
+                description = f"Low confidence ({score*100:.1f}%) match via EfficientNetB2."
+            else:
+                bird_name = label
+                description = f"Detected via local EfficientNetB2 model with {score*100:.1f}% confidence."
+            
             print(f"Identified: {bird_name} ({score:.2f})")
             
             # Save to cleanup
@@ -97,18 +105,17 @@ def gen(camera):
             # print("Motion detected!") # excessive spam
             if not is_processing:
                 if (time.time() - last_ai_call_time) > AI_COOLDOWN:
+                    print("MAIN: Motion Triggered! Starting classification thread...")
                     # Start background thread for specific tasks
-                    # is_processing = True
-                    # t = threading.Thread(target=process_bird_detection, args=(jpeg_bytes,))
-                    # t.daemon = True
-                    # t.start()
-                    pass
+                    is_processing = True
+                    t = threading.Thread(target=process_bird_detection, args=(jpeg_bytes,))
+                    t.daemon = True
+                    t.start()
                 else:
-                    # print("Cooldown active")
-                    pass
+                    remaining = AI_COOLDOWN - (time.time() - last_ai_call_time)
+                    print(f"MAIN: Cooldown active ({remaining:.1f}s remaining)")
             else:
-                # print("Already processing")
-                pass
+                print("MAIN: Already processing (locked)")
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + jpeg_bytes + b'\r\n\r\n')
