@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+birdybird.db
+static/captures/*
+.DS_Store
+yolov8n.pt
